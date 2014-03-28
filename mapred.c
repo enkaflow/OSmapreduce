@@ -151,24 +151,6 @@ void cleanup(char *fileName, int numFiles, FILE **inputs, SortedListPtr *lists)
         SLDestroyIterator(iter);
     }
 }
-/**************************************Create ArgPtrs*********************************************/
-MapArgPtr createMapArgPtr(FILE *input, SortedListPtr list)
-{
-    MapArgPtr targs = malloc(sizeof(struct MapArgPtr_));
-    targs->input = input;
-    targs->list = list;
-    return targs;
-}
-RedArgPtr createRedArgPtr(SortedListPtr *mapLists, SortedListPtr list, char *key, int numMaps, int numReds)
-{
-    RedArgPtr targs = malloc(sizeof(struct RedArgPtr_));
-    targs->mapLists = mapLists;
-    targs->list = list;
-    targs->key = key;
-    targs->numMaps = numMaps;
-    targs->numReds = numReds;
-    return targs;
-}
 
 int compareStrings(void*currObj, void*newObj)
 {
@@ -186,6 +168,24 @@ int hashfn(char * input, int reduce_workers)
 		hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
 
     return hash % reduce_workers;
+}
+/**************************************Create ArgPtrs*********************************************/
+MapArgPtr createMapArgPtr(FILE *input, SortedListPtr list)
+{
+    MapArgPtr targs = malloc(sizeof(struct MapArgPtr_));
+    targs->input = input;
+    targs->list = list;
+    return targs;
+}
+RedArgPtr createRedArgPtr(SortedListPtr *mapLists, SortedListPtr list, char *key, int numMaps, int numReds)
+{
+    RedArgPtr targs = malloc(sizeof(struct RedArgPtr_));
+    targs->mapLists = mapLists;
+    targs->list = list;
+    targs->key = key;
+    targs->numMaps = numMaps;
+    targs->numReds = numReds;
+    return targs;
 }
 /****************************Create Worker Threads*****************************/
 void createMapWorkers(FILE **inputs, SortedListPtr *mapLists, int numMaps, Map_Func map)
@@ -211,16 +211,15 @@ void createMapWorkers(FILE **inputs, SortedListPtr *mapLists, int numMaps, Map_F
     free(threadResult);
 }
 
-void createRedWorkers(SortedListPtr *mapLists, SortedListPtr list, int numMaps, int numReds, Reduce_Func reduce)
+void createRedWorkers(SortedListPtr *mapLists, SortedListPtr *redLists, int numMaps, int numReds, Reduce_Func reduce)
 {
-    /*
     CompareFuncT cf = compareStrings;
     pthread_t redid[numReds];
     int i, err;
     for(i = 0; i < numReds; i++)
     {
         redLists[i] = SLCreate(cf);
-        err = pthread_create(&redid[i], NULL, reduce, (void*)createRedArgPtr(mapLists, redLists, key, numMaps));
+        err = pthread_create(&redid[i], NULL, reduce, (void*)createRedArgPtr(mapLists, redLists[i], key, numMaps));
         if(err != 0)
         {
             fprintf(stderr, "\nERROR: Failed to create reduce worker thread: %s", strerror(err));
@@ -233,7 +232,6 @@ void createRedWorkers(SortedListPtr *mapLists, SortedListPtr list, int numMaps, 
         pthread_join(mapid[i], &threadResult);
     }
     free(threadResult);
-    */
 }
 /*****************Map and Reduce Functions************************/
 void *map_wordcount(void *targs)
@@ -284,23 +282,23 @@ void *reduce_wordcount(void *targs)
 	KeyVal thisKV;
 	hash = hashfn(key, numReds);
 
-	//FETCH
+	/*FETCH*/
 	for(i=0; i<numMaps; i++)
-	{ // go through all map outputs
+	{ /* go through all map outputs*/
 		p = SLCreateIterator(mapLists[i]);
 		while((thisKV = (KeyVal)SLNextItem(p)) != NULL)
-		{	//go through each KeyVal pair in each map, compare hashes.
+		{	/*go through each KeyVal pair in each map, compare hashes.*/
 			if(thisKV->hashVal == hash)
 				keyCount++;
 		}
 	}
 
-	//SORTED INSERT
+	/*SORTED INSERT*/
 	reducedOut = createKeyVal(key, keyCount);
 
 	SLInsert(list, (void*)reducedOut);
 
-	//CLEAN UP
+	/*CLEAN UP*/
 	SLDestroyIterator(p);
 
 	return NULL;

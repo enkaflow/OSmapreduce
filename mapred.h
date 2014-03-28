@@ -40,7 +40,7 @@ typedef void* (*Map_Func)(void *);
 typedef void* (*Reduce_Func)(void *);
 
 void createMapWorkers(FILE **inputs, SortedListPtr *mapLists, int numMaps, Map_Func map);
-void createRedWorkers(SortedListPtr *mapLists, SortedListPtr list, int numMaps, int numReds, Reduce_Func reduce);
+void createRedWorkers(SortedListPtr *mapLists, SortedListPtr *redLists, int numMaps, int numReds, Reduce_Func reduce);
 void splitInput(char **argv);
 void assignFilePtrs(FILE **inputs, int numFiles, char *fileName);
 void cleanup(char *fileName, int numFiles, FILE **inputs, SortedListPtr *lists);
