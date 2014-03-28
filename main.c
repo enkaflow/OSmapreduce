@@ -2,7 +2,6 @@
 int checkArgs(int argc, char **argv);
 void printHelp(void);
 int isNumber(char *string);
-void wordcount_reduce(SortedListPtr lists[], SortedListPtr redLists[], char * key, int numMaps);
 
 int main(int argc, char **argv)
 {
@@ -24,38 +23,21 @@ int main(int argc, char **argv)
     }
     int numMaps = atoi(argv[2]);
     int numReds = atoi(argv[3]);
+    int i = 0;
     FILE *inputs[numMaps];
-    SortedListPtr lists[numMaps];
-    CompareFuncT cf = compareStrings;
+    SortedListPtr mapLists[numMaps];
+    SortedListPtr redLists[numReds];
 
     splitInput(argv);
     assignFilePtrs(inputs, numMaps,argv[4]);
-    pthread_t mapid[numMaps];
-    pthread_t redid[numReds];
-    int i, err;
-    for(i = 0; i < numMaps; i++)
-    {
-        lists[i] = SLCreate(cf);
-        err = pthread_create(&mapid[i], NULL, map, (void*)createArgPtr(inputs[i],lists[i]));
-        if(err != 0)
-        {
-            fprintf(stderr, "\nERROR: Failed to create map worker thread: %s", strerror(err));
-            exit(EXIT_FAILURE);
-        }
-    }
-    void *threadResult;
-    for(i = 0; i < numMaps; i++)
-    {
-        pthread_join(mapid[i], &threadResult);
-    }
-    free(threadResult);
+    createMapWorkers(inputs, mapLists, numMaps, map);
 
     for(i = 0; i < numMaps; i++)
     {
         printf("\n\nlist:%d",i);
-        display(lists[i]);
+        display(mapLists[i]);
     }
-    cleanup(argv[4], numMaps, inputs, lists);
+    cleanup(argv[4], numMaps, inputs, mapLists);
 
     return 0;
 }
@@ -137,44 +119,4 @@ int isNumber(char *string)
         if(!isdigit(string[i])){return 0;}
     }
     return 1;
-}
-
-void wordcount_reduce(SortedListPtr lists[], SortedListPtr redLists[], char * key, int numMaps) 
-{
-	/*
-	 * Description: counts all instances of 'key' in lists, then places result into redLists.
-	 * Parameters: map worker outputs (lists[]), reduce worker output structure (redLists[]), key to be reduced (key), and number of map workers aka # of entries in lists[] (numMaps)
-	 * Modifies: redLists[threadID] ONLY
-	 * Returns: nothing
-	 *
-	 */
-	 
-	int i;
-	int keyCount=0;
-	int hash;
-	KeyVal reducedOut;
-	SortedListIteratorPtr p;
-	KeyVal thisKV;
-	hash = hashfn(key);
-	
-	//FETCH
-	for(i=0; i<numMaps; i++) 
-	{ // go through all map outputs
-		p = SLCreateIterator(lists[i]);
-		while((thisKV = (KeyVal)SLNextItem(p)) != NULL) 
-		{	//go through each KeyVal pair in each map, compare hashes.
-			if(thisKV->hashVal == hash)
-				keyCount++;		
-		}
-	}
-	
-	//SORTED INSERT
-	reducedOut = createKeyVal(key, keyCount);
-	
-	SLInsert(redLists[threadID], (void*)reducedOut);
-	
-	//CLEAN UP
-	SLDestroyIterator(p);
-	
-	return;
 }

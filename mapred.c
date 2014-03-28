@@ -119,44 +119,11 @@ char *makeLowerCase(char *string)
 }
 KeyVal createKeyVal(char *key, int value)
 {
+    /*Desripcion: creates and new KeyVal struct*/
     KeyVal keyVal = malloc(sizeof(struct KeyVal_));
     keyVal->key = key;
     keyVal->value = value;
     return keyVal;
-}
-void *map_wordcount(void *targ)
-{
-    ArgPtr args = (ArgPtr)targ;
-    FILE *input = args->input;
-    SortedListPtr list = args->list;
-    char line[512];
-    char *token;
-    char *delims = " !/@#$%^&*()_+-,.;:[]{}<>\\|\'\"\n\r\t\?";
-    TokenizerT *tk;
-
-    while(fgets(line, sizeof(line), input))
-    {
-        tk = TKCreate(delims, line);
-        while((token = TKGetNextToken(tk))!= NULL)
-        {
-            SLInsert(list, (void*)createKeyVal(makeLowerCase(token), 1));
-            free(token);
-        }
-        TKDestroy(tk);
-    }
-    return targ;
-}
-void *map_sort(void *targ)
-{
-    return NULL;
-}
-void *reduce_wordcount(void *targ)
-{
-    return NULL;
-}
-void *reduce_sort(void *targ)
-{
-    return NULL;
 }
 
 void cleanup(char *fileName, int numFiles, FILE **inputs, SortedListPtr *lists)
@@ -184,11 +151,22 @@ void cleanup(char *fileName, int numFiles, FILE **inputs, SortedListPtr *lists)
         SLDestroyIterator(iter);
     }
 }
-ArgPtr createArgPtr(FILE *input, SortedListPtr list)
+/**************************************Create ArgPtrs*********************************************/
+MapArgPtr createMapArgPtr(FILE *input, SortedListPtr list)
 {
-    ArgPtr targs = malloc(sizeof(struct ArgPtr_));
+    MapArgPtr targs = malloc(sizeof(struct MapArgPtr_));
     targs->input = input;
     targs->list = list;
+    return targs;
+}
+RedArgPtr createRedArgPtr(SortedListPtr *mapLists, SortedListPtr list, char *key, int numMaps, int numReds)
+{
+    RedArgPtr targs = malloc(sizeof(struct RedArgPtr_));
+    targs->mapLists = mapLists;
+    targs->list = list;
+    targs->key = key;
+    targs->numMaps = numMaps;
+    targs->numReds = numReds;
     return targs;
 }
 
@@ -199,7 +177,7 @@ int compareStrings(void*currObj, void*newObj)
     return strcmp(currKeyVal->key, newKeyVal->key);
 }
 
-int hash(char * input, int reduce_workers) //djb2 hashfn, known to provide good results for strings
+int hashfn(char * input, int reduce_workers)
 {
     int hash = 5381;
     int c;
@@ -208,4 +186,126 @@ int hash(char * input, int reduce_workers) //djb2 hashfn, known to provide good 
 		hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
 
     return hash % reduce_workers;
+}
+/****************************Create Worker Threads*****************************/
+void createMapWorkers(FILE **inputs, SortedListPtr *mapLists, int numMaps, Map_Func map)
+{
+    CompareFuncT cf = compareStrings;
+    pthread_t mapid[numMaps];
+    int i, err;
+    for(i = 0; i < numMaps; i++)
+    {
+        mapLists[i] = SLCreate(cf);
+        err = pthread_create(&mapid[i], NULL, map, (void*)createMapArgPtr(inputs[i], mapLists[i]));
+        if(err != 0)
+        {
+            fprintf(stderr, "\nERROR: Failed to create map worker thread: %s", strerror(err));
+            exit(EXIT_FAILURE);
+        }
+    }
+    void *threadResult;
+    for(i = 0; i < numMaps; i++)
+    {
+        pthread_join(mapid[i], &threadResult);
+    }
+    free(threadResult);
+}
+
+void createRedWorkers(SortedListPtr *mapLists, SortedListPtr list, int numMaps, int numReds, Reduce_Func reduce)
+{
+    /*
+    CompareFuncT cf = compareStrings;
+    pthread_t redid[numReds];
+    int i, err;
+    for(i = 0; i < numReds; i++)
+    {
+        redLists[i] = SLCreate(cf);
+        err = pthread_create(&redid[i], NULL, reduce, (void*)createRedArgPtr(mapLists, redLists, key, numMaps));
+        if(err != 0)
+        {
+            fprintf(stderr, "\nERROR: Failed to create reduce worker thread: %s", strerror(err));
+            exit(EXIT_FAILURE);
+        }
+    }
+    void *threadResult;
+    for(i = 0; i < numMaps; i++)
+    {
+        pthread_join(mapid[i], &threadResult);
+    }
+    free(threadResult);
+    */
+}
+/*****************Map and Reduce Functions************************/
+void *map_wordcount(void *targs)
+{
+    MapArgPtr args = (MapArgPtr)targs;
+    FILE *input = args->input;
+    SortedListPtr list = args->list;
+    char line[512];
+    char *token;
+    char *delims = " !/@#$%^&*()_+-,.;:[]{}<>\\|\'\"\n\r\t\?";
+    TokenizerT *tk;
+
+    while(fgets(line, sizeof(line), input))
+    {
+        tk = TKCreate(delims, line);
+        while((token = TKGetNextToken(tk))!= NULL)
+        {
+            SLInsert(list, (void*)createKeyVal(makeLowerCase(token), 1));
+            free(token);
+        }
+        TKDestroy(tk);
+    }
+    return targs;
+}
+void *map_sort(void *targs)
+{
+    return NULL;
+}
+void *reduce_wordcount(void *targs)
+{
+	/*
+	 * Description: counts all instances of 'key' in lists, then places result into redLists.
+	 * Parameters: map worker outputs (lists[]), reduce worker output structure (redLists[]), key to be reduced (key), and number of map workers aka # of entries in lists[] (numMaps)
+	 * Modifies: redLists[threadID] ONLY
+	 * Returns: nothing
+	 *
+	 */
+    SortedListPtr *mapLists = ((RedArgPtr)targs)->mapLists;
+    SortedListPtr list = ((RedArgPtr)targs)->list;
+    char *key = ((RedArgPtr)targs)->key;
+    int numMaps = ((RedArgPtr)targs)->numMaps;
+    int numReds = ((RedArgPtr)targs)->numReds;
+	int i;
+	int keyCount=0;
+	int hash;
+	KeyVal reducedOut;
+	SortedListIteratorPtr p;
+	KeyVal thisKV;
+	hash = hashfn(key, numReds);
+
+	//FETCH
+	for(i=0; i<numMaps; i++)
+	{ // go through all map outputs
+		p = SLCreateIterator(mapLists[i]);
+		while((thisKV = (KeyVal)SLNextItem(p)) != NULL)
+		{	//go through each KeyVal pair in each map, compare hashes.
+			if(thisKV->hashVal == hash)
+				keyCount++;
+		}
+	}
+
+	//SORTED INSERT
+	reducedOut = createKeyVal(key, keyCount);
+
+	SLInsert(list, (void*)reducedOut);
+
+	//CLEAN UP
+	SLDestroyIterator(p);
+
+	return NULL;
+}
+void *reduce_sort(void *targs)
+{
+    return NULL;
 }
