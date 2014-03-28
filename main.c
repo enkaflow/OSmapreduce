@@ -1,18 +1,31 @@
 #include "mapred.h"
-void checkArgs(int argc, char **argv, Map_Func map, Reduce_Func reduce);
+int checkArgs(int argc, char **argv);
 void printHelp(void);
 int isNumber(char *string);
 
 int main(int argc, char **argv)
 {
-    checkArgs(argc, argv);
+    int check = checkArgs(argc, argv);
+    Map_Func map;
+    Reduce_Func reduce;
+    switch(check)
+    {
+    case 1:
+        map = map_wordcount;
+        reduce = reduce_wordcount;
+        break;
+    case 2:
+        map = map_sort;
+        reduce = reduce_sort;
+        break;
+    default:
+        exit(EXIT_FAILURE);
+    }
     int numMaps = atoi(argv[2]);
     int numReds = atoi(argv[3]);
     FILE *inputs[numMaps];
     SortedListPtr lists[numMaps];
     CompareFuncT cf = compareStrings;
-    Map_Func map;
-    Reduce_Func reduce;
 
     splitInput(argv);
     assignFilePtrs(inputs, numMaps,argv[4]);
@@ -56,7 +69,7 @@ void printHelp()
     printf("\narg4: input file\narg5: outputfile");
     printf("\nEXAMPLE: wordcount 10 4 input.txt output.txt\n");
 }
-void checkArgs(int argc, char **argv, Map_Func map, Reduce_Func reduce)
+int checkArgs(int argc, char **argv)
 {
     /* Description: checks arguments for validity
     ** Modifies: nothing
@@ -90,13 +103,21 @@ void checkArgs(int argc, char **argv, Map_Func map, Reduce_Func reduce)
         fprintf(stderr, "\nRerun with '-help' to display help screen\n");
         exit(EXIT_FAILURE);
     }
-    if((strcmp(argv[1],"wordcount") == 0) && (strcmp(argv[1], "sort")== 0))
+    if((input = fopen(argv[4],"r")) == NULL)
     {
-        map = map_wordcount;
+        fprintf(stderr, "ERROR: failed to open input file '%s' please check file directory", argv[4]);
+        fprintf(stderr, "\nRerun with '-help' to display help screen\n");
+        exit(EXIT_FAILURE);
     }
-    else if((strcmp(argv[1], "sort")== 0) )
-    {
+    fclose(input);
 
+    if(strcmp(argv[1],"wordcount") == 0)
+    {
+        return 1;
+    }
+    else if(strcmp(argv[1], "sort")== 0 )
+    {
+        return 2;
     }
     else
     {
@@ -104,14 +125,6 @@ void checkArgs(int argc, char **argv, Map_Func map, Reduce_Func reduce)
         fprintf(stderr, "\nRerun with '-help' to display help screen\n");
         exit(EXIT_FAILURE);
     }
-    if((input = fopen(argv[4],"r")) == NULL)
-       {
-           fprintf(stderr, "ERROR: failed to open input file '%s' please check file directory", argv[4]);
-           fprintf(stderr, "\nRerun with '-help' to display help screen\n");
-           exit(EXIT_FAILURE);
-       }
-    fclose(input);
-
 }
 int isNumber(char *string)
 {

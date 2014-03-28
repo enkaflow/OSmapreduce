@@ -15,7 +15,7 @@ struct KeyVal_
 {
     char *key;
     int value;
-    int hashVal;
+    int hash;
 };
 typedef struct KeyVal_ *KeyVal;
 
@@ -26,12 +26,15 @@ struct ArgPtr_
 };
 typedef struct ArgPtr_ *ArgPtr;
 
-typedef int (*Map_Func)(void *);
-typedef int (*Reduce_Func)(void *);
+typedef void* (*Map_Func)(void *);
+typedef void* (*Reduce_Func)(void *);
 void splitInput(char **argv);
 void assignFilePtrs(FILE **inputs, int numFiles, char *fileName);
 void cleanup(char *fileName, int numFiles, FILE **inputs, SortedListPtr *lists);
 void *map_wordcount(void *targ);
+void *map_sort(void *targ);
+void *reduce_wordcount(void *targ);
+void *reduce_sort(void *targ);
 
 char *modifyFileName(char *fileName, int num);
 char *itoa(int num);

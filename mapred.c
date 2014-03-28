@@ -146,6 +146,18 @@ void *map_wordcount(void *targ)
     }
     return targ;
 }
+void *map_sort(void *targ)
+{
+    return NULL;
+}
+void *reduce_wordcount(void *targ)
+{
+    return NULL;
+}
+void *reduce_sort(void *targ)
+{
+    return NULL;
+}
 
 void cleanup(char *fileName, int numFiles, FILE **inputs, SortedListPtr *lists)
 {
@@ -192,7 +204,7 @@ int hash(char * input, int reduce_workers) //djb2 hashfn, known to provide good 
     int hash = 5381;
     int c;
 
-	while (c = *str++)
+	while ((c = *input++))
 		hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
 
     return hash % reduce_workers;
