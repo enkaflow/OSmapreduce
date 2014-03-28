@@ -236,6 +236,11 @@ void createRedWorkers(SortedListPtr *mapLists, SortedListPtr *redLists, int numM
 /*****************Map and Reduce Functions************************/
 void *map_wordcount(void *targs)
 {
+    /* Description: reads an inputfile and adds a KeyVal (key, val) for every word to the MapWorker's list
+    ** Parameter: void* casted MapArgPtr
+    ** Modifies: mapLists[MapWokerId]
+    ** Returns: NULL
+    */
     MapArgPtr args = (MapArgPtr)targs;
     FILE *input = args->input;
     SortedListPtr list = args->list;
