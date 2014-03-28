@@ -8,6 +8,7 @@ int main(int argc, char **argv)
     int check = checkArgs(argc, argv);
     Map_Func map;
     Reduce_Func reduce;
+    Hash_Func hash = hashfn;
     switch(check)
     {
     case 1:

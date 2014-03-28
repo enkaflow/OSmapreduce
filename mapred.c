@@ -169,6 +169,11 @@ int hashfn(char * input, int reduce_workers)
 
     return hash % reduce_workers;
 }
+void partition(SortedListPtr *mapLists, int numReds, Hash_Func hash)
+{
+
+}
+
 /**************************************Create ArgPtrs*********************************************/
 MapArgPtr createMapArgPtr(FILE *input, SortedListPtr list)
 {
@@ -184,6 +189,14 @@ RedArgPtr createRedArgPtr(SortedListPtr *mapLists, SortedListPtr list, char *key
     targs->list = list;
     targs->key = key;
     targs->numMaps = numMaps;
+    targs->numReds = numReds;
+    return targs;
+}
+PartArgPtr createPartArgPtr(SortedListPtr list, Hash_Func hash, int numReds)
+{
+    PartArgPtr targs = malloc(sizeof(struct PartArgPtr));
+    targs->list = list;
+    targs->hash = hash;
     targs->numReds = numReds;
     return targs;
 }
@@ -229,7 +242,7 @@ void createRedWorkers(SortedListPtr *mapLists, SortedListPtr *redLists, int numM
     void *threadResult;
     for(i = 0; i < numMaps; i++)
     {
-        pthread_join(mapid[i], &threadResult);
+        pthread_join(redid[i], &threadResult);
     }
     free(threadResult);
 }

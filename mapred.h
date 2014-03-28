@@ -36,8 +36,17 @@ struct RedArgPtr_
 };
 typedef struct RedArgPtr_ *RedArgPtr;
 
+struct PartArgPtr_
+{
+    SortedListPtr list;
+    Hash_Func hash;
+    int numReds;
+};
+typedef PartArgPtr_ *PartArgPtr;
+
 typedef void* (*Map_Func)(void *);
 typedef void* (*Reduce_Func)(void *);
+typedef int (*Hash_Func)(SortedListPtr *mapLists)(int numReds);
 
 void createMapWorkers(FILE **inputs, SortedListPtr *mapLists, int numMaps, Map_Func map);
 void createRedWorkers(SortedListPtr *mapLists, SortedListPtr *redLists, int numMaps, int numReds, Reduce_Func reduce);
@@ -48,6 +57,8 @@ void *map_wordcount(void *targs);
 void *map_sort(void *targs);
 void *reduce_wordcount(void *targs);
 void *reduce_sort(void *targs);
+void partition(SortedListPtr *mapLists, int numReds, Hash_Func hash);
+
 
 char *modifyFileName(char *fileName, int num);
 char *itoa(int num);
@@ -55,6 +66,7 @@ char *makeLowerCase(char *string);
 
 MapArgPtr createMapArgPtr(FILE *input, SortedListPtr list);
 RedArgPtr createRedArgPtr(SortedListPtr *mapLists, SortedListPtr list, char *key, int numMaps, int numReds);
+PartArgPtr createPartArgPtr(SortedListPtr list, Hash_Func hash, int numReds);
 KeyVal createKeyVal(char *key, int value);
 
 int compareStrings(void*currObj, void*newObj);
