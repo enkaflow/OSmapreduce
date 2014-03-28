@@ -2,6 +2,7 @@
 int checkArgs(int argc, char **argv);
 void printHelp(void);
 int isNumber(char *string);
+void wordcount_reduce(SortedListPtr lists[], SortedListPtr redLists[], char * key, int numMaps);
 
 int main(int argc, char **argv)
 {
@@ -55,9 +56,6 @@ int main(int argc, char **argv)
         display(lists[i]);
     }
     cleanup(argv[4], numMaps, inputs, lists);
-
-
-
 
     return 0;
 }
@@ -139,4 +137,44 @@ int isNumber(char *string)
         if(!isdigit(string[i])){return 0;}
     }
     return 1;
+}
+
+void wordcount_reduce(SortedListPtr lists[], SortedListPtr redLists[], char * key, int numMaps) 
+{
+	/*
+	 * Description: counts all instances of 'key' in lists, then places result into redLists.
+	 * Parameters: map worker outputs (lists[]), reduce worker output structure (redLists[]), key to be reduced (key), and number of map workers aka # of entries in lists[] (numMaps)
+	 * Modifies: redLists[threadID] ONLY
+	 * Returns: nothing
+	 *
+	 */
+	 
+	int i;
+	int keyCount=0;
+	int hash;
+	KeyVal reducedOut;
+	SortedListIteratorPtr p;
+	KeyVal thisKV;
+	hash = hashfn(key);
+	
+	//FETCH
+	for(i=0; i<numMaps; i++) 
+	{ // go through all map outputs
+		p = SLCreateIterator(lists[i]);
+		while((thisKV = (KeyVal)SLNextItem(p)) != NULL) 
+		{	//go through each KeyVal pair in each map, compare hashes.
+			if(thisKV->hashVal == hash)
+				keyCount++;		
+		}
+	}
+	
+	//SORTED INSERT
+	reducedOut = createKeyVal(key, keyCount);
+	
+	SLInsert(redLists[threadID], (void*)reducedOut);
+	
+	//CLEAN UP
+	SLDestroyIterator(p);
+	
+	return;
 }
